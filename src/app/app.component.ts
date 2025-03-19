@@ -1,6 +1,6 @@
-import { Component, ViewEncapsulation } from '@angular/core';
+import { Component, ViewEncapsulation, OnDestroy } from '@angular/core';
 import { AgGridAngular } from 'ag-grid-angular';
-import { ColDef, IMultiFilterParams } from 'ag-grid-community';
+import { ColDef, GridApi, IMultiFilterParams } from 'ag-grid-community';
 
 import {
   AllEnterpriseModule,
@@ -54,9 +54,11 @@ LicenseManager.setLicenseKey('<your license key>');
     </ag-grid-angular>
   `,
 })
-export class AppComponent {
-  private gridApi: any;
-  private columnApi: any;
+export class AppComponent implements OnDestroy {
+  private gridApi: GridApi | null = null;
+  private columnApi: any = null;
+  private eventListeners: Array<{ element: Element; type: string; listener: EventListener }> = [];
+  private timeoutId: any = null;
 
   rowData = [
     { make: 'Toyota', model: 'Celica', price: 35000 },
@@ -118,7 +120,9 @@ export class AppComponent {
     flex: 1,
     floatingFilter: true,
     suppressFilterButton: true,
-   
+    filterParams: {
+      debounceMs: 200
+    }
   };
 
   statusBar = {
@@ -134,69 +138,132 @@ export class AppComponent {
     this.gridApi = params.api;
     this.columnApi = params.columnApi;
     
+    // Clear any existing timeout to prevent memory leaks
+    if (this.timeoutId) {
+      clearTimeout(this.timeoutId);
+    }
+    
     // After grid is ready, inject clear buttons into floating filters
-    setTimeout(() => {
-      const floatingFilterContainers = document.querySelectorAll('.ag-floating-filter-body');
+    this.timeoutId = setTimeout(() => {
+      this.injectClearButtons();
+    }, 500);
+  }
+
+  /**
+   * Injects clear buttons into floating filters
+   * Extracted to a separate method for better organization
+   */
+  private injectClearButtons(): void {
+    if (!this.gridApi) return;
+    
+    const floatingFilterContainers = document.querySelectorAll('.ag-floating-filter-body');
+    
+    floatingFilterContainers.forEach((container: Element, index) => {
+      if (index >= this.colDefs.length) return; // Safety check
       
-      floatingFilterContainers.forEach((container: Element, index) => {
-        // Get the input from the container
-        const input = container.querySelector('input');
-        if (!input) return;
+      // Get the input from the container
+      const input = container.querySelector('input');
+      if (!input) return;
+      
+      // Create the clear button
+      const clearButton = document.createElement('button');
+      clearButton.className = 'clear-filter-button';
+      clearButton.innerHTML = 'x';
+      clearButton.style.display = 'none';
+      clearButton.type = 'button'; // Ensure it's treated as a button
+      
+      // Setup input event listeners with debouncing
+      const handleInput = this.debounce(() => {
+        clearButton.style.display = input.value ? 'block' : 'none';
+      }, 100);
+      
+      this.addEventListenerWithTracking(input, 'input', handleInput);
+      
+      // Setup clear button click handler
+      this.addEventListenerWithTracking(clearButton, 'click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         
-        // Create the clear button
-        const clearButton = document.createElement('button');
-        clearButton.className = 'clear-filter-button';
-        clearButton.innerHTML = 'x';
-        clearButton.style.display = 'none';
-        clearButton.type = 'button'; // Ensure it's treated as a button
-        
-        // Setup input event listeners
-        input.addEventListener('input', () => {
-          clearButton.style.display = input.value ? 'block' : 'none';
-        });
-        
-        // Setup clear button click handler
-        clearButton.addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
+        try {
+          // Get the column ID
+          const columnId = this.colDefs[index].field;
           
-          try {
-            // Get the column ID
-            const columnId = this.colDefs[index].field;
+          if (columnId && this.gridApi) {
+            // Get the current filter model
+            const currentFilterModel = this.gridApi.getFilterModel();
             
-            if (columnId) {
-              // Get the current filter model
-              const currentFilterModel = this.gridApi.getFilterModel();
-              
-              // Remove only this column's filter
-              if (currentFilterModel && currentFilterModel[columnId]) {
-                delete currentFilterModel[columnId];
-                this.gridApi.setFilterModel(currentFilterModel);
-              }
-              
-              // Clear the input value
-              input.value = '';
-              
-              // Dispatch input event to trigger filter update
-              const event = new Event('input', { bubbles: true });
-              input.dispatchEvent(event);
-              
-              // Hide the clear button
-              clearButton.style.display = 'none';
+            // Remove only this column's filter
+            if (currentFilterModel && currentFilterModel[columnId]) {
+              delete currentFilterModel[columnId];
+              this.gridApi.setFilterModel(currentFilterModel);
             }
-          } catch (error) {
-            console.error('Error clearing filter:', error);
+            
+            // Clear the input value
+            input.value = '';
+            
+            // Dispatch input event to trigger filter update
+            const event = new Event('input', { bubbles: true });
+            input.dispatchEvent(event);
+            
+            // Hide the clear button
+            clearButton.style.display = 'none';
           }
-        });
-        
-        // Add the clear button to the container
-        container.appendChild(clearButton);
-        
-        // Check initial state
-        if (input.value) {
-          clearButton.style.display = 'block';
+        } catch (error) {
+          console.error('Error clearing filter:', error);
         }
       });
-    }, 500); // Increased timeout to ensure all elements are loaded
+      
+      // Add the clear button to the container
+      container.appendChild(clearButton);
+      
+      // Check initial state
+      if (input.value) {
+        clearButton.style.display = 'block';
+      }
+    });
+  }
+  
+  /**
+   * Add event listener with tracking for cleanup
+   */
+  private addEventListenerWithTracking(
+    element: Element, 
+    eventType: string, 
+    listener: EventListener
+  ): void {
+    element.addEventListener(eventType, listener);
+    this.eventListeners.push({ element, type: eventType, listener });
+  }
+  
+  /**
+   * Simple debounce function to prevent excessive handling
+   */
+  private debounce(func: Function, wait: number): any {
+    let timeout: any;
+    const self = this; // Capture this context
+    return function(...args: any[]) {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => func.apply(self, args), wait);
+    };
+  }
+
+  /**
+   * Cleanup when component is destroyed
+   */
+  ngOnDestroy(): void {
+    // Clear any pending timeouts
+    if (this.timeoutId) {
+      clearTimeout(this.timeoutId);
+    }
+    
+    // Remove all event listeners
+    this.eventListeners.forEach(({ element, type, listener }) => {
+      element.removeEventListener(type, listener);
+    });
+    
+    // Clear references
+    this.eventListeners = [];
+    this.gridApi = null;
+    this.columnApi = null;
   }
 }
