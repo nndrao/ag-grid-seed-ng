@@ -1,6 +1,6 @@
 import { Component, ViewEncapsulation } from '@angular/core';
 import { AgGridAngular } from 'ag-grid-angular';
-import { ColDef } from 'ag-grid-community';
+import { ColDef, IMultiFilterParams } from 'ag-grid-community';
 
 import {
   AllEnterpriseModule,
@@ -26,6 +26,7 @@ LicenseManager.setLicenseKey('<your license key>');
     .clear-filter-button {
       display: none;
       position: absolute;
+      top: 15px;
       right: 5px;
       cursor: pointer;
       background: none;
@@ -61,22 +62,63 @@ export class AppComponent {
     { make: 'Toyota', model: 'Celica', price: 35000 },
     { make: 'Ford', model: 'Mondeo', price: 32000 },
     { make: 'Porsche', model: 'Boxster', price: 72000 },
+    { make: 'Honda', model: 'Civic', price: 22000 },
+    { make: 'Toyota', model: 'Camry', price: 25000 },
+    { make: 'BMW', model: '3 Series', price: 42000 },
+    { make: 'Mercedes', model: 'C-Class', price: 46000 },
+    { make: 'Audi', model: 'A4', price: 40000 },
+    { make: 'Volkswagen', model: 'Golf', price: 28000 },
+    { make: 'Tesla', model: 'Model 3', price: 48000 },
+    { make: 'Hyundai', model: 'Tucson', price: 26000 },
+    { make: 'Kia', model: 'Sportage', price: 25000 },
+    { make: 'Mazda', model: 'CX-5', price: 27000 },
+    { make: 'Subaru', model: 'Forester', price: 29000 },
+    { make: 'Nissan', model: 'Altima', price: 24000 },
+    { make: 'Chevrolet', model: 'Malibu', price: 23000 },
+    { make: 'Ford', model: 'Focus', price: 21000 },
+    { make: 'Toyota', model: 'Corolla', price: 20000 },
+    { make: 'Honda', model: 'Accord', price: 27000 },
+    { make: 'Lexus', model: 'ES', price: 45000 }
   ];
 
   colDefs: ColDef[] = [
-    { field: 'make' },
-    { field: 'model' },
-    { field: 'price' },
+    { field: 'make', filter: 'agMultiColumnFilter', filterParams: {
+      filters: [
+        {
+          filter: "agTextColumnFilter",
+        },
+        {
+          filter: "agSetColumnFilter",
+        },
+      ],
+    } as IMultiFilterParams},
+    { field: 'model', filter: 'agMultiColumnFilter', filterParams: {
+      filters: [
+        {
+          filter: "agTextColumnFilter",
+        },
+        {
+          filter: "agSetColumnFilter",
+        },
+      ],
+    } as IMultiFilterParams },
+    { field: 'price', filter: 'agMultiColumnFilter', filterParams: {
+      filters: [
+        {
+          filter: "agNumberColumnFilter",
+        },
+        {
+          filter: "agSetColumnFilter",
+        },
+      ],
+    } as IMultiFilterParams,},
   ];
 
   defaultColDef = {
     flex: 1,
-    filter: 'agTextColumnFilter',
     floatingFilter: true,
     suppressFilterButton: true,
-    filterParams: {
-      debounceMs: 200
-    }
+   
   };
 
   statusBar = {
