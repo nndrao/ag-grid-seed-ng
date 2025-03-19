@@ -31,14 +31,37 @@ LicenseManager.setLicenseKey('<your license key>');
       cursor: pointer;
       background: none;
       border: none;
-      color: #777;
       font-weight: bold;
       z-index: 10;
       font-size: 12px;
+      opacity: 0.7;
+      transition: opacity 0.2s;
+      color: inherit;
     }
     
     .clear-filter-button:hover {
+      opacity: 1;
+    }
+    
+    /* Theme-specific styles */
+    .ag-theme-quartz .clear-filter-button,
+    .ag-theme-quartz-light .clear-filter-button {
       color: #333;
+    }
+    
+    .ag-theme-quartz-dark .clear-filter-button,
+    .ag-theme-alpine-dark .clear-filter-button,
+    .ag-theme-balham-dark .clear-filter-button {
+      color: #fff;
+    }
+    
+    /* For Material theme */
+    .ag-theme-material .clear-filter-button {
+      color: rgba(0, 0, 0, 0.87);
+    }
+    
+    .ag-theme-material-dark .clear-filter-button {
+      color: rgba(255, 255, 255, 0.87);
     }
   `],
   template: /* html */ `
@@ -171,6 +194,7 @@ export class AppComponent implements OnDestroy {
       clearButton.innerHTML = 'x';
       clearButton.style.display = 'none';
       clearButton.type = 'button'; // Ensure it's treated as a button
+      clearButton.title = 'Clear filter'; // Add tooltip
       
       // Setup input event listeners with debouncing
       const handleInput = this.debounce(() => {
