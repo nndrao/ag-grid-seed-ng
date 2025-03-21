@@ -8,7 +8,8 @@ import {
   ColumnVisibleEvent, 
   GridReadyEvent, 
   ColumnResizedEvent,
-  ColumnPinnedEvent
+  ColumnPinnedEvent,
+  ColGroupDef
 } from 'ag-grid-community';
 
 import {
@@ -26,35 +27,138 @@ LicenseManager.setLicenseKey('<your license key>');
   imports: [AgGridAngular],
   encapsulation: ViewEncapsulation.None,
   styles: [`
+    /* Overall app layout */
+    :host {
+      display: block;
+      padding: 20px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    }
+    
+    .app-container {
+      display: flex;
+      flex-direction: column;
+      gap: 25px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    /* Page title */
+    .app-title {
+      margin: 0 0 15px 0;
+      font-size: 24px;
+      font-weight: 500;
+      color: #333;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 10px;
+    }
+    
+    /* Column management section */
+    .column-management {
+      background-color: #f9f9f9;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      margin-bottom: 25px;
+    }
+
+    .column-management h3 {
+      margin: 0 0 15px 0;
+      font-size: 18px;
+      font-weight: 500;
+      color: #444;
+    }
+
+    /* Column control buttons */
+    .column-controls {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+
+    .column-controls button {
+      padding: 10px 16px;
+      border: 1px solid #ddd;
+      background-color: white;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-weight: 500;
+      font-size: 14px;
+      color: #555;
+    }
+
+    .column-controls button:hover {
+      background-color: #f0f0f0;
+      border-color: #ccc;
+      color: #333;
+    }
+    
+    .column-controls button:active {
+      background-color: #e5e5e5;
+      transform: translateY(1px);
+    }
+    
+    /* Grid container */
+    .grid-container {
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      height: 600px;
+    }
+    
+    /* Make sure floating filter rows are visible */
+    .ag-header-row-floating-filter {
+      visibility: visible !important;
+      display: flex !important;
+      z-index: 10;
+    }
+    
     /* Create a wrapper for filter inputs */
     .ag-floating-filter-body {
       position: relative;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      min-height: 28px;
+      z-index: 10;
     }
     
-    /* Style for the floating filter inputs */
+    /* Style for the floating filter inputs - match AG Grid default more closely */
     .ag-floating-filter-input, 
     .ag-floating-filter-body input {
       padding-right: 25px !important;
       width: 100%;
+      height: 28px !important;
+      border-radius: 0;
+      border: none;
+      box-shadow: none;
+      background-color: transparent;
+      font-family: inherit;
+      font-size: var(--ag-font-size);
+      color: inherit;
+      visibility: visible !important;
+      display: block !important;
+      opacity: 1 !important;
     }
     
     /* Clear button as a real button element */
     .ag-filter-clear-button {
       position: absolute;
       top: 50%;
-      right: 8px;
+      right: 5px;
       transform: translateY(-50%);
       cursor: pointer;
       font-weight: bold;
-      font-size: 14px;
-      opacity: 0.7;
+      font-size: 12px;
+      opacity: 0.6;
       transition: opacity 0.2s;
       z-index: 50;
       width: 16px;
       height: 16px;
       line-height: 14px;
       text-align: center;
-      background: rgba(0,0,0,0.05);
+      background: transparent;
       border-radius: 50%;
       border: none;
       padding: 0;
@@ -64,7 +168,7 @@ LicenseManager.setLicenseKey('<your license key>');
     
     .ag-filter-clear-button:hover {
       opacity: 1;
-      background: rgba(0,0,0,0.1);
+      background: rgba(0,0,0,0.05);
     }
     
     /* Theme-specific styles */
@@ -87,22 +191,49 @@ LicenseManager.setLicenseKey('<your license key>');
     .ag-theme-material-dark .ag-filter-clear-button {
       color: rgba(255, 255, 255, 0.87);
     }
+    
+    /* AG Grid theme customizations */
+    .ag-theme-quartz {
+      --ag-header-height: 40px;
+      --ag-header-foreground-color: #333;
+      --ag-header-background-color: #f5f5f5;
+      --ag-header-cell-hover-background-color: #ececec;
+      --ag-row-hover-color: #f0f7ff;
+      --ag-selected-row-background-color: #e5f2ff;
+      --ag-font-size: 14px;
+      --ag-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    }
   `],
   template: /* html */ `
-    <ag-grid-angular
-      class="ag-theme-quartz"
-      style="height: 100%;"
-      [rowData]="rowData"
-      [columnDefs]="colDefs"
-      [defaultColDef]="defaultColDef"
-      [statusBar]="statusBar"
-      (gridReady)="onGridReady($event)"
-      (columnMoved)="onColumnEvent($event)"
-      (columnResized)="onColumnEvent($event)"
-      (columnVisible)="onColumnEvent($event)"
-      (columnPinned)="onColumnEvent($event)"
-    >
-    </ag-grid-angular>
+    <div class="app-container">
+      <h1 class="app-title">AG Grid Data Explorer</h1>
+      
+      <div class="column-management">
+        <h3>Column Management</h3>
+        <div class="column-controls">
+          <button id="btn-add-column">Add Regular Column</button>
+          <button id="btn-remove-last-column">Remove Last Column</button>
+          <button id="btn-add-column-group">Add Column Group</button>
+          <button id="btn-add-to-group">Add Column to Group</button>
+          <button id="btn-remove-from-group">Remove Column from Group</button>
+          <button id="btn-reset-columns">Reset Columns</button>
+        </div>
+      </div>
+
+      <div class="grid-container">
+        <ag-grid-angular
+          class="ag-theme-quartz"
+          style="width: 100%; height: 100%;"
+          [rowData]="rowData"
+          [columnDefs]="colDefs"
+          [defaultColDef]="defaultColDef"
+          [statusBar]="statusBar"
+          [sideBar]="sideBar"
+          (gridReady)="onGridReady($event)"
+        >
+        </ag-grid-angular>
+      </div>
+    </div>
   `,
 })
 export class AppComponent implements OnDestroy {
@@ -110,32 +241,34 @@ export class AppComponent implements OnDestroy {
   private eventListeners: Array<{ element: Element; type: string; listener: EventListener }> = [];
   private timeoutId: any = null;
   private gridInitialized = false;
+  private columnCounter = 0;
+  private originalColDefs: (ColDef | ColGroupDef)[] = [];
 
   rowData = [
-    { make: 'Toyota', model: 'Celica', price: 35000 },
-    { make: 'Ford', model: 'Mondeo', price: 32000 },
-    { make: 'Porsche', model: 'Boxster', price: 72000 },
-    { make: 'Honda', model: 'Civic', price: 22000 },
-    { make: 'Toyota', model: 'Camry', price: 25000 },
-    { make: 'BMW', model: '3 Series', price: 42000 },
-    { make: 'Mercedes', model: 'C-Class', price: 46000 },
-    { make: 'Audi', model: 'A4', price: 40000 },
-    { make: 'Volkswagen', model: 'Golf', price: 28000 },
-    { make: 'Tesla', model: 'Model 3', price: 48000 },
-    { make: 'Hyundai', model: 'Tucson', price: 26000 },
-    { make: 'Kia', model: 'Sportage', price: 25000 },
-    { make: 'Mazda', model: 'CX-5', price: 27000 },
-    { make: 'Subaru', model: 'Forester', price: 29000 },
-    { make: 'Nissan', model: 'Altima', price: 24000 },
-    { make: 'Chevrolet', model: 'Malibu', price: 23000 },
-    { make: 'Ford', model: 'Focus', price: 21000 },
-    { make: 'Toyota', model: 'Corolla', price: 20000 },
-    { make: 'Honda', model: 'Accord', price: 27000 },
-    { make: 'Lexus', model: 'ES', price: 45000 }
+    { make: 'Toyota', model: 'Celica', price: 35000, year: 2010, color: 'Red', mileage: 50000, engine: 'V4', transmission: 'Automatic' },
+    { make: 'Ford', model: 'Mondeo', price: 32000, year: 2012, color: 'Blue', mileage: 65000, engine: 'V6', transmission: 'Manual' },
+    { make: 'Porsche', model: 'Boxster', price: 72000, year: 2015, color: 'Black', mileage: 30000, engine: 'V6', transmission: 'Automatic' },
+    { make: 'Honda', model: 'Civic', price: 22000, year: 2018, color: 'White', mileage: 25000, engine: 'Inline-4', transmission: 'Automatic' },
+    { make: 'Toyota', model: 'Camry', price: 25000, year: 2019, color: 'Silver', mileage: 22000, engine: 'Inline-4', transmission: 'Automatic' },
+    { make: 'BMW', model: '3 Series', price: 42000, year: 2020, color: 'Blue', mileage: 18000, engine: 'Inline-6', transmission: 'Automatic' },
+    { make: 'Mercedes', model: 'C-Class', price: 46000, year: 2021, color: 'Black', mileage: 15000, engine: 'Inline-4', transmission: 'Automatic' },
+    { make: 'Audi', model: 'A4', price: 40000, year: 2019, color: 'White', mileage: 20000, engine: 'Inline-4', transmission: 'Automatic' },
+    { make: 'Volkswagen', model: 'Golf', price: 28000, year: 2020, color: 'Gray', mileage: 22000, engine: 'Inline-4', transmission: 'Manual' },
+    { make: 'Tesla', model: 'Model 3', price: 48000, year: 2021, color: 'Red', mileage: 10000, engine: 'Electric', transmission: 'Automatic' },
+    { make: 'Hyundai', model: 'Tucson', price: 26000, year: 2018, color: 'Blue', mileage: 35000, engine: 'Inline-4', transmission: 'Automatic' },
+    { make: 'Kia', model: 'Sportage', price: 25000, year: 2019, color: 'White', mileage: 30000, engine: 'Inline-4', transmission: 'Automatic' },
+    { make: 'Mazda', model: 'CX-5', price: 27000, year: 2020, color: 'Red', mileage: 25000, engine: 'Inline-4', transmission: 'Automatic' },
+    { make: 'Subaru', model: 'Forester', price: 29000, year: 2018, color: 'Green', mileage: 40000, engine: 'Flat-4', transmission: 'CVT' },
+    { make: 'Nissan', model: 'Altima', price: 24000, year: 2019, color: 'Black', mileage: 35000, engine: 'Inline-4', transmission: 'CVT' },
+    { make: 'Chevrolet', model: 'Malibu', price: 23000, year: 2020, color: 'Silver', mileage: 30000, engine: 'Inline-4', transmission: 'Automatic' },
+    { make: 'Ford', model: 'Focus', price: 21000, year: 2018, color: 'Blue', mileage: 45000, engine: 'Inline-3', transmission: 'Automatic' },
+    { make: 'Toyota', model: 'Corolla', price: 20000, year: 2019, color: 'White', mileage: 38000, engine: 'Inline-4', transmission: 'CVT' },
+    { make: 'Honda', model: 'Accord', price: 27000, year: 2020, color: 'Black', mileage: 28000, engine: 'Inline-4', transmission: 'CVT' },
+    { make: 'Lexus', model: 'ES', price: 45000, year: 2021, color: 'Silver', mileage: 15000, engine: 'V6', transmission: 'Automatic' }
   ];
 
-  colDefs: ColDef[] = [
-    { field: 'make', filter: 'agMultiColumnFilter', filterParams: {
+  colDefs: (ColDef | ColGroupDef)[] = [
+    { field: 'make', filter: 'agMultiColumnFilter', floatingFilter: true, filterParams: {
       filters: [
         {
           filter: "agTextColumnFilter",
@@ -145,7 +278,7 @@ export class AppComponent implements OnDestroy {
         },
       ],
     } as IMultiFilterParams},
-    { field: 'model', filter: 'agMultiColumnFilter', filterParams: {
+    { field: 'model', filter: 'agMultiColumnFilter', floatingFilter: true, filterParams: {
       filters: [
         {
           filter: "agTextColumnFilter",
@@ -155,7 +288,7 @@ export class AppComponent implements OnDestroy {
         },
       ],
     } as IMultiFilterParams },
-    { field: 'price', filter: 'agMultiColumnFilter', filterParams: {
+    { field: 'price', filter: 'agMultiColumnFilter', floatingFilter: true, filterParams: {
       filters: [
         {
           filter: "agNumberColumnFilter",
@@ -164,7 +297,7 @@ export class AppComponent implements OnDestroy {
           filter: "agSetColumnFilter",
         },
       ],
-    } as IMultiFilterParams,},
+    } as IMultiFilterParams},
   ];
 
   defaultColDef = {
@@ -185,11 +318,34 @@ export class AppComponent implements OnDestroy {
     ],
   };
 
+  sideBar = {
+    toolPanels: [
+      {
+        id: 'columns',
+        labelDefault: 'Columns',
+        labelKey: 'columns',
+        iconKey: 'columns',
+        toolPanel: 'agColumnsToolPanel',
+      },
+      {
+        id: 'filters',
+        labelDefault: 'Filters',
+        labelKey: 'filters',
+        iconKey: 'filter',
+        toolPanel: 'agFiltersToolPanel',
+      }
+    ],
+    defaultToolPanel: 'columns'
+  };
+
   /**
    * Called when the grid is ready
    */
   onGridReady(params: GridReadyEvent) {
     this.gridApi = params.api;
+    
+    // Store original column definitions
+    this.originalColDefs = [...this.colDefs];
     
     // Clear any existing timeout to prevent memory leaks
     if (this.timeoutId) {
@@ -198,11 +354,321 @@ export class AppComponent implements OnDestroy {
     
     // Set grid as initialized
     this.gridInitialized = true;
+
+    // Ensure the floating filters are enabled
+    console.log('Grid ready, setting up floating filters');
     
-    // After grid is ready, setup filter events
+    // After grid is ready, setup filter events with increased timeout
+    // to ensure the DOM is fully rendered
     this.timeoutId = setTimeout(() => {
+      console.log('Setting up filter events after delay');
       this.setupFilterEvents();
-    }, 500);
+    }, 800);
+
+    // Set up button event listeners programmatically
+    this.setupButtonEventListeners();
+    
+    // Set up grid event listeners programmatically
+    this.setupGridEventListeners();
+  }
+
+  /**
+   * Set up event listeners for all buttons
+   */
+  private setupButtonEventListeners(): void {
+    // Add column button
+    const addColumnBtn = document.getElementById('btn-add-column');
+    if (addColumnBtn) {
+      this.addEventListenerWithTracking(addColumnBtn, 'click', () => this.addColumn());
+    }
+    
+    // Remove last column button
+    const removeLastColumnBtn = document.getElementById('btn-remove-last-column');
+    if (removeLastColumnBtn) {
+      this.addEventListenerWithTracking(removeLastColumnBtn, 'click', () => this.removeLastColumn());
+    }
+    
+    // Add column group button
+    const addColumnGroupBtn = document.getElementById('btn-add-column-group');
+    if (addColumnGroupBtn) {
+      this.addEventListenerWithTracking(addColumnGroupBtn, 'click', () => this.addColumnGroup());
+    }
+    
+    // Add column to group button
+    const addToGroupBtn = document.getElementById('btn-add-to-group');
+    if (addToGroupBtn) {
+      this.addEventListenerWithTracking(addToGroupBtn, 'click', () => this.addColumnToGroup());
+    }
+    
+    // Remove column from group button
+    const removeFromGroupBtn = document.getElementById('btn-remove-from-group');
+    if (removeFromGroupBtn) {
+      this.addEventListenerWithTracking(removeFromGroupBtn, 'click', () => this.removeColumnFromGroup());
+    }
+    
+    // Reset columns button
+    const resetColumnsBtn = document.getElementById('btn-reset-columns');
+    if (resetColumnsBtn) {
+      this.addEventListenerWithTracking(resetColumnsBtn, 'click', () => this.resetColumns());
+    }
+  }
+  
+  /**
+   * Set up event listeners for grid events
+   */
+  private setupGridEventListeners(): void {
+    if (!this.gridApi) return;
+    
+    // Add event listeners for column events
+    this.gridApi.addEventListener('columnMoved', (event) => this.onColumnEvent(event));
+    this.gridApi.addEventListener('columnResized', (event) => this.onColumnEvent(event));
+    this.gridApi.addEventListener('columnVisible', (event) => this.onColumnEvent(event));
+    this.gridApi.addEventListener('columnPinned', (event) => this.onColumnEvent(event));
+  }
+
+  /**
+   * Add a new column with the same filter configuration
+   */
+  addColumn() {
+    this.columnCounter++;
+    const newField = `dynamicField${this.columnCounter}`;
+    const newColumn: ColDef = {
+      field: newField,
+      headerName: `Dynamic Column ${this.columnCounter}`,
+      filter: 'agMultiColumnFilter',
+      floatingFilter: true,
+      filterParams: {
+        filters: [
+          {
+            filter: "agTextColumnFilter",
+          },
+          {
+            filter: "agSetColumnFilter",
+          },
+        ],
+      } as IMultiFilterParams,
+    };
+    
+    // Add random data to the rows for this column
+    this.addRandomDataToRows(newField);
+    
+    // Add the column to the grid
+    this.colDefs = [...this.colDefs, newColumn];
+    
+    if (this.gridApi) {
+      this.gridApi.setGridOption('columnDefs', this.colDefs);
+      
+      // After adding the column, refresh the filter buttons
+      this.refreshFilterButtons();
+    }
+  }
+
+  /**
+   * Remove the last added column
+   */
+  removeLastColumn() {
+    if (this.colDefs.length <= 3) {
+      console.log('Cannot remove base columns');
+      return;
+    }
+    
+    this.colDefs = this.colDefs.slice(0, -1);
+    
+    if (this.gridApi) {
+      this.gridApi.setGridOption('columnDefs', this.colDefs);
+      
+      // After removing the column, refresh the filter buttons
+      this.refreshFilterButtons();
+    }
+  }
+
+  /**
+   * Add a column group with child columns
+   */
+  addColumnGroup() {
+    this.columnCounter++;
+    const groupId = `group${this.columnCounter}`;
+    
+    // Create child columns for the group
+    const childColumns: ColDef[] = [];
+    for (let i = 1; i <= 2; i++) {
+      const childField = `${groupId}_child${i}`;
+      childColumns.push({
+        field: childField,
+        headerName: `Group ${this.columnCounter} Column ${i}`,
+        filter: 'agMultiColumnFilter',
+        floatingFilter: true,
+        filterParams: {
+          filters: [
+            {
+              filter: "agTextColumnFilter",
+            },
+            {
+              filter: "agSetColumnFilter",
+            },
+          ],
+        } as IMultiFilterParams,
+      });
+      
+      // Add random data for this column
+      this.addRandomDataToRows(childField);
+    }
+    
+    // Create the column group
+    const columnGroup: ColGroupDef = {
+      headerName: `Group ${this.columnCounter}`,
+      children: childColumns,
+    };
+    
+    // Add the column group to the grid
+    this.colDefs = [...this.colDefs, columnGroup];
+    
+    if (this.gridApi) {
+      this.gridApi.setGridOption('columnDefs', this.colDefs);
+      
+      // After adding the column group, refresh the filter buttons
+      this.refreshFilterButtons();
+    }
+  }
+
+  /**
+   * Add a new column to an existing group
+   */
+  addColumnToGroup() {
+    // Find the first column group
+    const groupIndex = this.colDefs.findIndex(col => (col as ColGroupDef).children !== undefined);
+    
+    if (groupIndex === -1) {
+      console.log('No column groups found. Please add a column group first.');
+      return;
+    }
+    
+    const columnGroup = this.colDefs[groupIndex] as ColGroupDef;
+    const groupChildren = columnGroup.children || [];
+    
+    // Create a new child column
+    this.columnCounter++;
+    const childField = `${columnGroup.headerName?.replace(/\s+/g, '')}_child${groupChildren.length + 1}`;
+    const newChildColumn: ColDef = {
+      field: childField,
+      headerName: `New Child ${this.columnCounter}`,
+      filter: 'agMultiColumnFilter',
+      floatingFilter: true,
+      filterParams: {
+        filters: [
+          {
+            filter: "agTextColumnFilter",
+          },
+          {
+            filter: "agSetColumnFilter",
+          },
+        ],
+      } as IMultiFilterParams,
+    };
+    
+    // Add random data for this column
+    this.addRandomDataToRows(childField);
+    
+    // Add the new child to the group
+    columnGroup.children = [...groupChildren, newChildColumn];
+    
+    if (this.gridApi) {
+      this.gridApi.setGridOption('columnDefs', this.colDefs);
+      
+      // After adding the column to the group, refresh the filter buttons
+      this.refreshFilterButtons();
+    }
+  }
+
+  /**
+   * Remove a column from an existing group
+   */
+  removeColumnFromGroup() {
+    // Find the first column group
+    const groupIndex = this.colDefs.findIndex(col => (col as ColGroupDef).children !== undefined);
+    
+    if (groupIndex === -1) {
+      console.log('No column groups found. Please add a column group first.');
+      return;
+    }
+    
+    const columnGroup = this.colDefs[groupIndex] as ColGroupDef;
+    const groupChildren = columnGroup.children || [];
+    
+    if (groupChildren.length <= 1) {
+      console.log('Cannot remove the last column from a group.');
+      return;
+    }
+    
+    // Remove the last child from the group
+    columnGroup.children = groupChildren.slice(0, -1);
+    
+    if (this.gridApi) {
+      this.gridApi.setGridOption('columnDefs', this.colDefs);
+      
+      // After removing the column from the group, refresh the filter buttons
+      this.refreshFilterButtons();
+    }
+  }
+
+  /**
+   * Reset columns to original state
+   */
+  resetColumns() {
+    this.columnCounter = 0;
+    this.colDefs = [...this.originalColDefs];
+    
+    if (this.gridApi) {
+      this.gridApi.setGridOption('columnDefs', this.colDefs);
+      
+      // After resetting the columns, refresh the filter buttons
+      this.refreshFilterButtons();
+    }
+  }
+
+  /**
+   * Add random data to the rows for a specific field
+   */
+  private addRandomDataToRows(field: string) {
+    const values = ['Value A', 'Value B', 'Value C', 'Value D', 'Value E'];
+    
+    this.rowData = this.rowData.map(row => {
+      return {
+        ...row,
+        [field]: values[Math.floor(Math.random() * values.length)]
+      };
+    });
+    
+    if (this.gridApi) {
+      this.gridApi.setGridOption('rowData', this.rowData);
+    }
+  }
+
+  /**
+   * Refresh the filter buttons after column changes
+   */
+  private refreshFilterButtons() {
+    // Clear any existing timeout
+    if (this.timeoutId) {
+      clearTimeout(this.timeoutId);
+    }
+    
+    // Use a timeout to ensure the DOM has been updated
+    this.timeoutId = setTimeout(() => {
+      console.log('Refreshing filter buttons');
+      this.cleanupExistingEvents();
+      this.setupFilterEvents();
+      
+      // Force grid to refresh floating filters by updating column defs
+      if (this.gridApi) {
+        // Refresh the header to ensure proper rendering
+        this.gridApi.refreshHeader();
+        
+        // Force a full refresh of column definitions to ensure floating filters are shown
+        const currentColDefs = [...this.colDefs];
+        this.gridApi.setGridOption('columnDefs', currentColDefs);
+      }
+    }, 300);
   }
 
   /**
@@ -228,13 +694,18 @@ export class AppComponent implements OnDestroy {
    * Cleanup existing event listeners
    */
   private cleanupExistingEvents(): void {
-    // Clean up all event listeners
-    this.eventListeners.forEach(({ element, type, listener }) => {
-      element.removeEventListener(type, listener);
+    // Only remove event listeners related to filter inputs and clear buttons
+    this.eventListeners = this.eventListeners.filter(({ element, type, listener }) => {
+      const isFilterInput = element.tagName === 'INPUT' && 
+                            element.closest('.ag-floating-filter-body');
+      const isClearButton = element.classList.contains('ag-filter-clear-button');
+      
+      if (isFilterInput || isClearButton) {
+        element.removeEventListener(type, listener);
+        return false; // Remove from array
+      }
+      return true; // Keep in array
     });
-    
-    // Clear the event listeners array
-    this.eventListeners = [];
     
     // Remove clear buttons
     document.querySelectorAll('.ag-filter-clear-button').forEach(el => {
