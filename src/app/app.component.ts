@@ -107,42 +107,13 @@ LicenseManager.setLicenseKey('<your license key>');
       height: 600px;
     }
     
-    /* Make sure floating filter rows are visible */
-    .ag-header-row-floating-filter {
-      visibility: visible !important;
-      display: flex !important;
-      z-index: 10;
-    }
-    
-    /* Create a wrapper for filter inputs */
-    .ag-floating-filter-body {
-      position: relative;
-      height: 100%;
-      display: flex;
-      align-items: center;
-      min-height: 28px;
-      z-index: 10;
-    }
-    
-    /* Style for the floating filter inputs - match AG Grid default more closely */
-    .ag-floating-filter-input, 
+    /* Minimal floating filter styling - just enough to ensure proper padding for the clear button */
+    .ag-floating-filter-input,
     .ag-floating-filter-body input {
-      padding-right: 25px !important;
-      width: 100%;
-      height: 28px !important;
-      border-radius: 0;
-      border: none;
-      box-shadow: none;
-      background-color: transparent;
-      font-family: inherit;
-      font-size: var(--ag-font-size);
-      color: inherit;
-      visibility: visible !important;
-      display: block !important;
-      opacity: 1 !important;
+      padding-right: 24px !important;
     }
     
-    /* Clear button as a real button element */
+    /* Clear button as a real button element - with minimal styles to not interfere with default AG Grid styling */
     .ag-filter-clear-button {
       position: absolute;
       top: 50%;
@@ -171,7 +142,7 @@ LicenseManager.setLicenseKey('<your license key>');
       background: rgba(0,0,0,0.05);
     }
     
-    /* Theme-specific styles */
+    /* Theme-specific styles for clear button */
     .ag-theme-quartz .ag-filter-clear-button,
     .ag-theme-quartz-light .ag-filter-clear-button {
       color: #333;
@@ -181,6 +152,15 @@ LicenseManager.setLicenseKey('<your license key>');
     .ag-theme-alpine-dark .ag-filter-clear-button,
     .ag-theme-balham-dark .ag-filter-clear-button {
       color: #fff;
+      opacity: 0.8;
+    }
+    
+    /* Dark theme hover improvement */
+    .ag-theme-quartz-dark .ag-filter-clear-button:hover,
+    .ag-theme-alpine-dark .ag-filter-clear-button:hover,
+    .ag-theme-balham-dark .ag-filter-clear-button:hover {
+      opacity: 1;
+      background: rgba(255,255,255,0.15);
     }
     
     /* For Material theme */
@@ -190,6 +170,12 @@ LicenseManager.setLicenseKey('<your license key>');
     
     .ag-theme-material-dark .ag-filter-clear-button {
       color: rgba(255, 255, 255, 0.87);
+      opacity: 0.8;
+    }
+    
+    .ag-theme-material-dark .ag-filter-clear-button:hover {
+      opacity: 1;
+      background: rgba(255,255,255,0.15);
     }
     
     /* AG Grid theme customizations */
@@ -202,6 +188,7 @@ LicenseManager.setLicenseKey('<your license key>');
       --ag-selected-row-background-color: #e5f2ff;
       --ag-font-size: 14px;
       --ag-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      --ag-border-color: #dde2eb;
     }
   `],
   template: /* html */ `
